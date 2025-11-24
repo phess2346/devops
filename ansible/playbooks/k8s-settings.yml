@@ -1,0 +1,42 @@
+---
+- name: Настройка узлов Kubernetes кластера
+  hosts: k8s_кластер
+  become: yes
+  vars_files:
+    - ../vars/основные.yml
+
+  roles:
+    - роль: базовая-настройка
+    - роль: docker
+    - роль: kubernetes
+
+  tasks:
+    - name: Настройка sysctl параметров для Kubernetes
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: net.bridge.bridge-nf-call-iptables, value: '1' }
+        - { name: net.bridge.bridge-nf-call-ip6tables, value: '1' }
+        - { name: net.ipv4.ip_forward, value: '1' }
+
+    - name: Создание конфигурационного файла для kubelet
+      template:
+        src: templates/kubelet-config.yaml.j2
+        dest: /etc/default/kubelet
+        owner: root
+        group: root
+        mode: '0644'
+      notify: перезапуск kubelet
+
+    - name: Загрузка образов Kubernetes
+      command: kubeadm config images pull
+      when: inventory_hostname in groups['k8s_мастер']
+
+  handlers:
+    - name: перезапуск kubelet
+      systemd:
+        name: kubelet
+        state: restarted
