@@ -1,92 +1,93 @@
 ---
-- name: Полная настройка сервера srv с инструментами мониторинга и CI/CD
-  hosts: srv_серверы
+- name: Configure srv server with monitoring and CI/CD tools
+  hosts: srv_servers
   become: yes
   vars_files:
-    - ../vars/основные.yml
-    - ../vars/секреты.yml
-
-  pre_tasks:
-    - name: Проверка подключения к серверу
-      ping:
-
-    - name: Обновление информации о хосте
-      setup:
+    - ../vars/basic.yml
+    - ../vars/secrets.yml
 
   roles:
-    - роль: базовая-настройка
-    - роль: docker
-    - роль: мониторинг
-    - роль: ci-cd
-    - роль: безопасность
+    - role: basic-settings
+    - role: docker
 
   tasks:
-    - name: Создание структуры каталогов для приложений
+    - name: Create directory structure
       file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ основной_пользователь }}"
-        group: "{{ основная_группа }}"
+        owner: "{{ main_user }}"
+        group: "{{ main_group }}"
         mode: '0755'
       loop:
-        - "{{ каталог_проектов }}"
-        - "{{ каталог_логов }}"
-        - "{{ каталог_бэкапов }}"
-        - "{{ каталог_скриптов }}"
+        - "{{ monitoring_directory }}"
+        - "{{ monitoring_directory }}/prometheus"
+        - "{{ monitoring_directory }}/grafana/provisioning"
+        - "{{ monitoring_directory }}/grafana/dashboards"
+        - "{{ ci_cd_directory }}"
+        - "{{ logs_directory }}"
 
-    - name: Настройка фаервола
+    - name: Deploy Prometheus configuration
+      copy:
+        content: |
+          global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: 'prometheus'
+              static_configs:
+                - targets: ['localhost:9090']
+
+            - job_name: 'node_exporter'
+              static_configs:
+                - targets: ['localhost:9100']
+        dest: "{{ monitoring_directory }}/prometheus/prometheus.yml"
+        owner: "{{ main_user }}"
+        group: "{{ main_group }}"
+
+    - name: Deploy monitoring stack docker-compose
+      template:
+        src: monitoring/docker-compose.yml.j2
+        dest: "{{ monitoring_directory }}/docker-compose.yml"
+        owner: "{{ main_user }}"
+        group: "{{ main_group }}"
+
+    - name: Start monitoring stack
+      community.docker.docker_compose:
+        project_src: "{{ monitoring_directory }}"
+        state: present
+
+    - name: Install kubectl
+      shell: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        rm kubectl
+
+    - name: Install yc CLI
+      shell: |
+        curl -s https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+        /home/{{ main_user }}/yandex-cloud/bin/yc components update
+      args:
+        executable: /bin/bash
+
+    - name: Add yc to PATH
+      lineinfile:
+        path: "/home/{{ main_user }}/.bashrc"
+        line: 'export PATH=$PATH:/home/{{ main_user }}/yandex-cloud/bin'
+        create: yes
+
+    - name: Configure firewall for monitoring services
       ufw:
-        rule: "{{ item.rule }}"
+        rule: allow
         port: "{{ item.port }}"
-        proto: "{{ item.proto | default('tcp') }}"
-      loop:
-        - { rule: allow, port: '22', proto: 'tcp' }
-        - { rule: allow, port: '80', proto: 'tcp' }
-        - { rule: allow, port: '443', proto: 'tcp' }
-        - { rule: allow, port: '3000', proto: 'tcp' }
-        - { rule: allow, port: '9090', proto: 'tcp' }
-        - { rule: allow, port: '9100', proto: 'tcp' }
+        proto: "{{ item.proto }}"
+      loop: "{{ allowed_ports }}"
 
-    - name: Включение фаервола
-      ufw:
-        state: enabled
-        policy: deny
-
-  post_tasks:
-    - name: Проверка работы Docker
-      command: docker --version
-      register: docker_version
-      changed_when: false
-
-    - name: Вывод версии Docker
-      debug:
-        msg: "Docker версия: {{ docker_version.stdout }}"
-
-    - name: Проверка работы Docker Compose
-      command: docker-compose --version
-      register: docker_compose_version
-      changed_when: false
-
-    - name: Вывод версии Docker Compose
-      debug:
-        msg: "Docker Compose версия: {{ docker_compose_version.stdout }}"
-
-    - name: Проверка работы системных служб
+  handlers:
+    - name: restart docker
       systemd:
-        name: "{{ item }}"
-        state: started
-      loop:
-        - docker
-        - мониторинг
+        name: docker
+        state: restarted
 
-    - name: Финальное сообщение
-      debug:
-        msg: |
-          Сервер srv успешно настроен!
-          
-          Доступные сервисы:
-          - Grafana: http://{{ inventory_hostname }}:3000
-          - Prometheus: http://{{ inventory_hostname }}:9090
-          - Node Exporter: http://{{ inventory_hostname }}:9100
-          
-          Логи находятся в: {{ каталог_логов }}
+    - name: restart monitoring
+      shell: cd {{ monitoring_directory }} && docker-compose restart
