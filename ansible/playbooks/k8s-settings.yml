@@ -1,17 +1,16 @@
 ---
-- name: Настройка узлов Kubernetes кластера
-  hosts: k8s_кластер
+- name: Configure Kubernetes cluster nodes
+  hosts: k8s_cluster
   become: yes
   vars_files:
-    - ../vars/основные.yml
+    - ../vars/basic.yml
 
   roles:
-    - роль: базовая-настройка
-    - роль: docker
-    - роль: kubernetes
+    - role: basic-settings
+    - role: docker
 
   tasks:
-    - name: Настройка sysctl параметров для Kubernetes
+    - name: Configure sysctl parameters for Kubernetes
       sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
@@ -22,21 +21,55 @@
         - { name: net.bridge.bridge-nf-call-ip6tables, value: '1' }
         - { name: net.ipv4.ip_forward, value: '1' }
 
-    - name: Создание конфигурационного файла для kubelet
+    - name: Add Kubernetes GPG key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes
+
+    - name: Install Kubernetes packages
+      apt:
+        name: "{{ k8s_packages }}"
+        state: present
+        force_apt_get: yes
+
+    - name: Hold Kubernetes packages at current version
+      command: apt-mark hold kubelet kubeadm kubectl
+
+    - name: Disable swap
+      command: swapoff -a
+      ignore_errors: yes
+
+    - name: Disable swap in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^.*swap.*$'
+        replace: '# \0'
+
+    - name: Enable kernel modules
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - br_netfilter
+        - overlay
+
+    - name: Create kubelet configuration
       template:
-        src: templates/kubelet-config.yaml.j2
+        src: kubelet/config.yaml.j2
         dest: /etc/default/kubelet
         owner: root
         group: root
         mode: '0644'
-      notify: перезапуск kubelet
-
-    - name: Загрузка образов Kubernetes
-      command: kubeadm config images pull
-      when: inventory_hostname in groups['k8s_мастер']
+      notify: restart kubelet
 
   handlers:
-    - name: перезапуск kubelet
+    - name: restart kubelet
       systemd:
         name: kubelet
         state: restarted
