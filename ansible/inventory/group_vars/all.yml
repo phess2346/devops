@@ -1,26 +1,39 @@
 ---
 # Основные настройки для всех хостов
-основной_пользователь: ubuntu
-основная_группа: ubuntu
+main_user: ubuntu
+main_group: ubuntu
 
 # Настройки времени
-часовой_пояс: Europe/Moscow
-ntp_серверы:
+timezone: Europe/Moscow
+ntp_servers:
   - pool.ntp.org
   - ntp.yandex.ru
 
-# Настройки локализации
-локализация: ru_RU.UTF-8
-язык: ru_RU.UTF-8
-
 # Настройки SSH
-ssh_порт: 22
-ssh_параметры:
+ssh_port: 22
+ssh_settings:
   - PasswordAuthentication no
   - PermitRootLogin no
   - ClientAliveInterval 300
   - ClientAliveCountMax 2
 
+# Базовые пакеты
+base_packages:
+  - curl
+  - wget
+  - gnupg
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - git
+  - htop
+  - tree
+  - jq
+  - vim
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+
 # Настройки обновлений
-автообновления: true
-обновления_без_перезагрузки: true
+auto_updates: true
+auto_reboot: false
