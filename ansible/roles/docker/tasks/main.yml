@@ -1,0 +1,59 @@
+---
+- name: Добавление Docker GPG ключа
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Добавление Docker репозитория
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Установка Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+    state: present
+
+- name: Установка Docker Compose
+  get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ версия_docker_compose }}/docker-compose-linux-x86_64"
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Создание симлинка для Docker Compose
+  file:
+    src: /usr/local/bin/docker-compose
+    dest: /usr/bin/docker-compose
+    state: link
+
+- name: Добавление пользователя в группу docker
+  user:
+    name: "{{ основной_пользователь }}"
+    groups: docker
+    append: yes
+
+- name: Настройка Docker демона
+  copy:
+    content: |
+      {
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "100m",
+          "max-file": "3"
+        },
+        "storage-driver": "overlay2"
+      }
+    dest: /etc/docker/daemon.json
+  notify: перезапуск docker
+
+- name: Запуск и включение Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
