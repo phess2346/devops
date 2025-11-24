@@ -1,0 +1,32 @@
+---
+# Версии программного обеспечения
+версия_docker_compose: "v2.20.0"
+версия_kubectl: "1.25.0"
+версия_helm: "3.12.0"
+
+# Настройки мониторинга
+версия_prometheus_stack: "46.8.0"
+версия_loki: "5.5.0"
+версия_blackbox_exporter: "5.3.1"
+namespace_мониторинга: "мониторинг"
+prometheus_volume_size: "50Gi"
+loki_retention_period: "720h"
+
+# Настройки Docker
+docker_storage_driver: "overlay2"
+docker_log_max_size: "100m"
+docker_log_max_files: "3"
+
+# Настройки безопасности
+fail2ban_ban_time: "3600"
+fail2ban_max_retry: "3"
+ufw_default_policy: "deny"
+
+# Список разрешенных портов
+разрешенные_порты:
+  - { port: '22', proto: 'tcp' }
+  - { port: '80', proto: 'tcp' }
+  - { port: '443', proto: 'tcp' }
+  - { port: '3000', proto: 'tcp' }
+  - { port: '9090', proto: 'tcp' }
+  - { port: '9100', proto: 'tcp' }
