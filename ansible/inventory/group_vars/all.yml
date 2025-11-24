@@ -1,0 +1,26 @@
+---
+# Основные настройки для всех хостов
+основной_пользователь: ubuntu
+основная_группа: ubuntu
+
+# Настройки времени
+часовой_пояс: Europe/Moscow
+ntp_серверы:
+  - pool.ntp.org
+  - ntp.yandex.ru
+
+# Настройки локализации
+локализация: ru_RU.UTF-8
+язык: ru_RU.UTF-8
+
+# Настройки SSH
+ssh_порт: 22
+ssh_параметры:
+  - PasswordAuthentication no
+  - PermitRootLogin no
+  - ClientAliveInterval 300
+  - ClientAliveCountMax 2
+
+# Настройки обновлений
+автообновления: true
+обновления_без_перезагрузки: true
