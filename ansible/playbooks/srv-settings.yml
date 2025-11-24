@@ -1,0 +1,92 @@
+---
+- name: Полная настройка сервера srv с инструментами мониторинга и CI/CD
+  hosts: srv_серверы
+  become: yes
+  vars_files:
+    - ../vars/основные.yml
+    - ../vars/секреты.yml
+
+  pre_tasks:
+    - name: Проверка подключения к серверу
+      ping:
+
+    - name: Обновление информации о хосте
+      setup:
+
+  roles:
+    - роль: базовая-настройка
+    - роль: docker
+    - роль: мониторинг
+    - роль: ci-cd
+    - роль: безопасность
+
+  tasks:
+    - name: Создание структуры каталогов для приложений
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ основной_пользователь }}"
+        group: "{{ основная_группа }}"
+        mode: '0755'
+      loop:
+        - "{{ каталог_проектов }}"
+        - "{{ каталог_логов }}"
+        - "{{ каталог_бэкапов }}"
+        - "{{ каталог_скриптов }}"
+
+    - name: Настройка фаервола
+      ufw:
+        rule: "{{ item.rule }}"
+        port: "{{ item.port }}"
+        proto: "{{ item.proto | default('tcp') }}"
+      loop:
+        - { rule: allow, port: '22', proto: 'tcp' }
+        - { rule: allow, port: '80', proto: 'tcp' }
+        - { rule: allow, port: '443', proto: 'tcp' }
+        - { rule: allow, port: '3000', proto: 'tcp' }
+        - { rule: allow, port: '9090', proto: 'tcp' }
+        - { rule: allow, port: '9100', proto: 'tcp' }
+
+    - name: Включение фаервола
+      ufw:
+        state: enabled
+        policy: deny
+
+  post_tasks:
+    - name: Проверка работы Docker
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Вывод версии Docker
+      debug:
+        msg: "Docker версия: {{ docker_version.stdout }}"
+
+    - name: Проверка работы Docker Compose
+      command: docker-compose --version
+      register: docker_compose_version
+      changed_when: false
+
+    - name: Вывод версии Docker Compose
+      debug:
+        msg: "Docker Compose версия: {{ docker_compose_version.stdout }}"
+
+    - name: Проверка работы системных служб
+      systemd:
+        name: "{{ item }}"
+        state: started
+      loop:
+        - docker
+        - мониторинг
+
+    - name: Финальное сообщение
+      debug:
+        msg: |
+          Сервер srv успешно настроен!
+          
+          Доступные сервисы:
+          - Grafana: http://{{ inventory_hostname }}:3000
+          - Prometheus: http://{{ inventory_hostname }}:9090
+          - Node Exporter: http://{{ inventory_hostname }}:9100
+          
+          Логи находятся в: {{ каталог_логов }}
