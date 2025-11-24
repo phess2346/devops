@@ -1,0 +1,63 @@
+---
+- name: Настройка инструментов CI/CD на сервере srv
+  hosts: srv_серверы
+  become: yes
+  vars_files:
+    - ../vars/основные.yml
+    - ../vars/секреты.yml
+
+  tasks:
+    - name: Установка Git
+      apt:
+        name: git
+        state: present
+
+    - name: Установка GitLab Runner
+      include_role:
+        name: ci-cd
+        tasks_from: gitlab-runner
+
+    - name: Установка Jenkins
+      include_role:
+        name: ci-cd
+        tasks_from: jenkins
+
+    - name: Настройка Docker Registry
+      include_role:
+        name: ci-cd
+        tasks_from: docker-registry
+
+    - name: Создание пользователя для CI/CD
+      user:
+        name: "{{ пользователь_ci_cd }}"
+        group: "{{ группа_ci_cd }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Настройка SSH ключей для CI/CD
+      copy:
+        src: "files/ssh/ci_cd_key.pub"
+        dest: "/home/{{ пользователь_ci_cd }}/.ssh/authorized_keys"
+        owner: "{{ пользователь_ci_cd }}"
+        group: "{{ группа_ci_cd }}"
+        mode: '0600'
+
+    - name: Создание каталогов для артефактов сборки
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ пользователь_ci_cd }}"
+        group: "{{ группа_ci_cd }}"
+        mode: '0755'
+      loop:
+        - "{{ каталог_артефактов }}/builds"
+        - "{{ каталог_артефактов }}/cache"
+        - "{{ каталог_артефактов }}/logs"
+
+    - name: Настройка квот дискового пространства
+      community.general.quota:
+        user: "{{ пользователь_ci_cd }}"
+        type: user
+        blocks_soft: "{{ квота_диска_мягкая }}"
+        blocks_hard: "{{ квота_диска_жесткая }}"
+        mountpoint: "{{ каталог_артефактов }}"
