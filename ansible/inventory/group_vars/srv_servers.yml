@@ -1,19 +1,23 @@
 ---
 # Настройки сервера srv
-каталог_проектов: /opt/projects
-каталог_логов: /var/log/apps
-каталог_бэкапов: /opt/backups
-каталог_скриптов: /opt/scripts
+project_directory: /opt/projects
+logs_directory: /var/log/applications
+backups_directory: /opt/backups
+scripts_directory: /opt/scripts
 
 # Настройки мониторинга
-каталог_мониторинга: /opt/monitoring
-порт_grafana: 3000
-порт_prometheus: 9090
-порт_node_exporter: 9100
+monitoring_directory: /opt/monitoring
+grafana_port: 3000
+prometheus_port: 9090
+node_exporter_port: 9100
 
 # Настройки CI/CD
-каталог_артефактов: /opt/ci-cd/artefacts
-пользователь_ci_cd: runner
-группа_ci_cd: runner
-квота_диска_мягкая: 10G
-квота_диска_жесткая: 12G
+ci_cd_directory: /opt/ci-cd
+ci_cd_user: runner
+ci_cd_group: runner
+
+# Версии ПО
+docker_compose_version: "v2.24.0"
+grafana_version: "10.0.0"
+prometheus_version: "2.47.0"
+node_exporter_version: "1.6.1"
