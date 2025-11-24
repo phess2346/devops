@@ -1,71 +1,63 @@
 ---
-- name: Обновление списка пакетов
+- name: Update package cache
   apt:
     update_cache: yes
     cache_valid_time: 3600
 
-- name: Установка базовых пакетов
+- name: Install base packages
   apt:
-    name:
-      - curl
-      - wget
-      - gnupg
-      - software-properties-common
-      - apt-transport-https
-      - ca-certificates
-      - git
-      - htop
-      - tree
-      - jq
-      - vim
-      - ufw
-      - fail2ban
-      - unattended-upgrades
+    name: "{{ base_packages }}"
     state: present
 
-- name: Настройка часового пояса
+- name: Set timezone
   timezone:
-    name: "{{ часовой_пояс }}"
+    name: "{{ timezone }}"
 
-- name: Настройка локализации
-  locale_gen:
-    name: "{{ локализация }}"
-    state: present
-
-- name: Настройка NTP
+- name: Configure NTP
   apt:
     name: chrony
     state: present
 
-- name: Настройка NTP серверов
+- name: Configure NTP servers
   template:
     src: chrony.conf.j2
     dest: /etc/chrony/chrony.conf
     owner: root
     group: root
     mode: '0644'
-  notify: перезапуск chrony
+  notify: restart chrony
 
-- name: Добавление SSH ключей пользователя
+- name: Add SSH public keys
   authorized_key:
-    user: "{{ основной_пользователь }}"
+    user: "{{ main_user }}"
     state: present
     key: "{{ item }}"
-  loop: "{{ ssh_публичные_ключи }}"
+  loop: "{{ ssh_public_keys }}"
 
-- name: Настройка SSH демона
+- name: Configure SSH daemon
   template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
     owner: root
     group: root
     mode: '0644'
-  notify: перезапуск sshd
+  notify: restart sshd
 
-- name: Настройка автоматических обновлений
+- name: Configure automatic updates
   template:
     src: unattended-upgrades.j2
     dest: /etc/apt/apt.conf.d/50unattended-upgrades
     owner: root
     group: root
     mode: '0644'
+
+- name: Enable UFW firewall
+  ufw:
+    state: enabled
+    policy: deny
+
+- name: Allow SSH through firewall
+  ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
