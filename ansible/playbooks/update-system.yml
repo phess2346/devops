@@ -1,27 +1,23 @@
 ---
-- name: Обновление и обслуживание системы
-  hosts: все
+- name: Update and maintain system
+  hosts: all
   become: yes
   vars_files:
-    - ../vars/основные.yml
+    - ../vars/basic.yml
 
   tasks:
-    - name: Обновление списка пакетов
+    - name: Update package cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
 
-    - name: Обновление установленных пакетов
+    - name: Upgrade system packages
       apt:
         upgrade: dist
         autoremove: yes
         autoclean: yes
 
-    - name: Очистка кэша apt
-      apt:
-        autoclean: yes
-
-    - name: Очистка временных файлов
+    - name: Clean temporary files
       file:
         path: "{{ item }}"
         state: absent
@@ -29,7 +25,7 @@
         - /tmp/*
         - /var/tmp/*
 
-    - name: Очистка логов
+    - name: Clean old logs
       find:
         paths: /var/log
         patterns: "*.log"
@@ -37,9 +33,9 @@
         state: absent
       ignore_errors: yes
 
-    - name: Перезагрузка системы при необходимости
+    - name: Reboot system if required
       reboot:
-        msg: "Перезагрузка после обновления системы"
+        msg: "Reboot after system update"
         connect_timeout: 5
         reboot_timeout: 300
         pre_reboot_delay: 0
