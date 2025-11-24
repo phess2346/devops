@@ -1,63 +1,59 @@
 ---
-- name: Настройка инструментов CI/CD на сервере srv
-  hosts: srv_серверы
+- name: Configure CI/CD tools on srv server
+  hosts: srv_servers
   become: yes
   vars_files:
-    - ../vars/основные.yml
-    - ../vars/секреты.yml
+    - ../vars/basic.yml
+    - ../vars/secrets.yml
 
   tasks:
-    - name: Установка Git
+    - name: Install Git
       apt:
         name: git
         state: present
 
-    - name: Установка GitLab Runner
-      include_role:
-        name: ci-cd
-        tasks_from: gitlab-runner
-
-    - name: Установка Jenkins
-      include_role:
-        name: ci-cd
-        tasks_from: jenkins
-
-    - name: Настройка Docker Registry
-      include_role:
-        name: ci-cd
-        tasks_from: docker-registry
-
-    - name: Создание пользователя для CI/CD
+    - name: Create CI/CD user
       user:
-        name: "{{ пользователь_ci_cd }}"
-        group: "{{ группа_ci_cd }}"
+        name: "{{ ci_cd_user }}"
+        group: "{{ ci_cd_group }}"
         shell: /bin/bash
         create_home: yes
 
-    - name: Настройка SSH ключей для CI/CD
-      copy:
-        src: "files/ssh/ci_cd_key.pub"
-        dest: "/home/{{ пользователь_ci_cd }}/.ssh/authorized_keys"
-        owner: "{{ пользователь_ci_cd }}"
-        group: "{{ группа_ci_cd }}"
-        mode: '0600'
-
-    - name: Создание каталогов для артефактов сборки
+    - name: Create CI/CD directories
       file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ пользователь_ci_cd }}"
-        group: "{{ группа_ci_cd }}"
+        owner: "{{ ci_cd_user }}"
+        group: "{{ ci_cd_group }}"
         mode: '0755'
       loop:
-        - "{{ каталог_артефактов }}/builds"
-        - "{{ каталог_артефактов }}/cache"
-        - "{{ каталог_артефактов }}/logs"
+        - "{{ ci_cd_directory }}/builds"
+        - "{{ ci_cd_directory }}/cache"
+        - "{{ ci_cd_directory }}/logs"
 
-    - name: Настройка квот дискового пространства
-      community.general.quota:
-        user: "{{ пользователь_ci_cd }}"
-        type: user
-        blocks_soft: "{{ квота_диска_мягкая }}"
-        blocks_hard: "{{ квота_диска_жесткая }}"
-        mountpoint: "{{ каталог_артефактов }}"
+    - name: Install GitLab Runner
+      shell: |
+        curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | sudo bash
+        apt-get install gitlab-runner
+      args:
+        executable: /bin/bash
+
+    - name: Register GitLab Runner (if token provided)
+      community.general.gitlab_runner:
+        coordinator: "https://gitlab.com"
+        registration_token: "{{ gitlab_runner_token }}"
+        description: "Kubernetes Runner"
+        tags:
+          - k8s
+          - docker
+        state: present
+      when: gitlab_runner_token is defined
+
+    - name: Configure firewall for CI/CD services
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "8080"
+        - "5000"
