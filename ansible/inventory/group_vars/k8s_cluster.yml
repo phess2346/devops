@@ -1,0 +1,12 @@
+---
+# Настройки Kubernetes
+версия_kubernetes: "1.25"
+cgroup_driver: systemd
+сетевой_плагин: flannel
+pod_network_cidr: 10.244.0.0/16
+service_cidr: 10.96.0.0/12
+
+# Настройки узлов
+тип_узла: "standard-v2"
+размер_диска: 64
+тип_диска: "network-ssd"
