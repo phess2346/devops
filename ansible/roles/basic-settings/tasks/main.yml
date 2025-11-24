@@ -1,0 +1,71 @@
+---
+- name: Обновление списка пакетов
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Установка базовых пакетов
+  apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - git
+      - htop
+      - tree
+      - jq
+      - vim
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+    state: present
+
+- name: Настройка часового пояса
+  timezone:
+    name: "{{ часовой_пояс }}"
+
+- name: Настройка локализации
+  locale_gen:
+    name: "{{ локализация }}"
+    state: present
+
+- name: Настройка NTP
+  apt:
+    name: chrony
+    state: present
+
+- name: Настройка NTP серверов
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: перезапуск chrony
+
+- name: Добавление SSH ключей пользователя
+  authorized_key:
+    user: "{{ основной_пользователь }}"
+    state: present
+    key: "{{ item }}"
+  loop: "{{ ssh_публичные_ключи }}"
+
+- name: Настройка SSH демона
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0644'
+  notify: перезапуск sshd
+
+- name: Настройка автоматических обновлений
+  template:
+    src: unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
