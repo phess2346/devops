@@ -1,16 +1,16 @@
 ---
-- name: Добавление Docker GPG ключа
+- name: Add Docker GPG key
   apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
     state: present
 
-- name: Добавление Docker репозитория
+- name: Add Docker repository
   apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
     state: present
     filename: docker
 
-- name: Установка Docker
+- name: Install Docker
   apt:
     name:
       - docker-ce
@@ -19,25 +19,25 @@
       - docker-buildx-plugin
     state: present
 
-- name: Установка Docker Compose
+- name: Install Docker Compose
   get_url:
-    url: "https://github.com/docker/compose/releases/download/{{ версия_docker_compose }}/docker-compose-linux-x86_64"
+    url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64"
     dest: /usr/local/bin/docker-compose
     mode: '0755'
 
-- name: Создание симлинка для Docker Compose
+- name: Create docker-compose symlink
   file:
     src: /usr/local/bin/docker-compose
     dest: /usr/bin/docker-compose
     state: link
 
-- name: Добавление пользователя в группу docker
+- name: Add user to docker group
   user:
-    name: "{{ основной_пользователь }}"
+    name: "{{ main_user }}"
     groups: docker
     append: yes
 
-- name: Настройка Docker демона
+- name: Configure Docker daemon
   copy:
     content: |
       {
@@ -50,9 +50,9 @@
         "storage-driver": "overlay2"
       }
     dest: /etc/docker/daemon.json
-  notify: перезапуск docker
+  notify: restart docker
 
-- name: Запуск и включение Docker
+- name: Start and enable Docker service
   systemd:
     name: docker
     state: started
