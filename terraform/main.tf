@@ -10,7 +10,7 @@ resource "yandex_vpc_subnet" "public" {
 }
 
 locals {
-  image_id = "fd8lq8u6j6k0********" # Ubuntu 22.04
+  image_id = data.yandex_compute_image.ubuntu.id
 }
 
 resource "yandex_compute_instance" "k8s_master" {
