@@ -1,0 +1,11 @@
+- name: Fetch join script
+  fetch:
+    src: /tmp/kube_join.sh
+    dest: /tmp/kube_join.sh
+    flat: yes
+  delegate_to: k8s-master
+
+- name: Join cluster
+  command: sh /tmp/kube_join.sh
+  args:
+    creates: /etc/kubernetes/kubelet.conf
