@@ -1,0 +1,19 @@
+- name: Create monitoring directory
+  file:
+    path: /opt/monitoring
+    state: directory
+
+- name: Copy docker-compose
+  copy:
+    src: docker-compose.yml
+    dest: /opt/monitoring/docker-compose.yml
+
+- name: Copy prometheus config
+  copy:
+    src: prometheus.yml
+    dest: /opt/monitoring/prometheus.yml
+
+- name: Start monitoring
+  command: docker-compose up -d
+  args:
+    chdir: /opt/monitoring
