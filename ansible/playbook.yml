@@ -1,0 +1,21 @@
+- hosts: all
+  become: true
+  roles:
+    - common
+    - docker
+    - k8s-common
+
+- hosts: k8s_master
+  become: true
+  roles:
+    - k8s-master
+
+- hosts: k8s_worker
+  become: true
+  roles:
+    - k8s-worker
+
+- hosts: srv
+  become: true
+  roles:
+    - monitoring
