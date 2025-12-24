@@ -1,0 +1,7 @@
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - git
+      - ca-certificates
+    update_cache: yes
